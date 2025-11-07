@@ -24,27 +24,19 @@ GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
 
 # Loop to add all nodes
 for i in range(NUM_NODES):
-    node_name = "node%d" % (i+1)
+    node_name = "node%d" % (i + 1)
     node = request.RawPC(node_name)
 
     # Set the OS to Ubuntu 22.04 LTS
-    node.hardware_type = "c220g5"  #choose appropriate hardware type
+    node.hardware_type = "c220g5"  # choose appropriate hardware type
     node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops:UBUNTU22-64-STD"
 
     # Service: clone git repo
-    node.addService(pg.Execute(
-        shell="sh",
-        command=f"""
-        git clone {GIT_REPO_URL} /local/repository || (cd /local/repository && git pull)
-        """
-    ))
+    clone_command = "git clone %s /local/repository || (cd /local/repository && git pull)" % GIT_REPO_URL
+    node.addService(pg.Execute(shell="sh", command=clone_command))
 
     # Service: run setup.sh
-    node.addService(pg.Execute(
-        shell="sh",
-        command="/local/repository/colloid?startup.sh"
-    ))
+    node.addService(pg.Execute(shell="sh", command="/local/repository/startup.sh"))
 
 # Print the RSpec
 pc.printRequestRSpec(request)
-
