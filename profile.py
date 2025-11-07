@@ -20,11 +20,11 @@ request = pc.makeRequestRSpec()
 NUM_NODES = 10
 
 # Git repository URL containing profile and setup scripts
-GIT_REPO_URL = "https://github.com/your-username/your-repo.git"  # <-- replace
+GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
 
 # Loop to add all nodes
 for i in range(NUM_NODES):
-    node_name = f"node{i+1}"
+    node_name = "node%d" % (i+1)
     node = request.RawPC(node_name)
 
     # Set the OS to Ubuntu 22.04 LTS
@@ -47,3 +47,4 @@ for i in range(NUM_NODES):
 
 # Print the RSpec
 pc.printRequestRSpec(request)
+
