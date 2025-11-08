@@ -35,6 +35,10 @@ for i in range(NUM_NODES):
     clone_command = "git clone %s /local/repository || (cd /local/repository && git pull)" % GIT_REPO_URL
     node.addService(pg.Execute(shell="sh", command=clone_command))
 
+    # Make the startup script executable
+    chmod_command = "chmod +x /local/repository/colloid_startup.sh"
+    node.addService(pg.Execute(shell="sh", command=chmod_command))
+
     # Service: run colloid_startup.sh
     node.addService(pg.Execute(shell="sh", command="/local/repository/colloid_startup.sh"))
 
