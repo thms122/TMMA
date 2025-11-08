@@ -15,9 +15,12 @@ pc = portal.Context()
 
 # Create request RSpec
 request = pc.makeRequestRSpec()
+pc.defineParameter("nodeCount", "Number of Nodes", portal.ParameterType.INTEGER, 1,
+                   longDescription="If you specify more then one node, " +
+                   "we will create a lan for you.")
 
-# Configuration: 10 nodes
-NUM_NODES = 1
+# Configuration: 5 nodes
+NUM_NODES = pc.getParameter("nodeCount")
 
 # Git repository URL containing profile and setup scripts
 GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
@@ -36,7 +39,7 @@ for i in range(NUM_NODES):
     node.addService(pg.Execute(shell="sh", command=clone_command))
 
     # Make the startup script executable
-    chmod_command = "chmod +x /local/repository/colloid_startup.sh"
+    chmod_command = "sudo chmod +x /local/repository/colloid_startup.sh"
     node.addService(pg.Execute(shell="sh", command=chmod_command))
 
     # Service: run colloid_startup.sh
