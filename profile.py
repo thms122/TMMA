@@ -19,8 +19,10 @@ pc.defineParameter("nodeCount", "Number of Nodes", portal.ParameterType.INTEGER,
                    longDescription="If you specify more then one node, " +
                    "we will create a lan for you.")
 
+params = pc.bindParameters()
+
 # Configuration: 5 nodes
-NUM_NODES = pc.getParameter("nodeCount")
+NUM_NODES = params.nodeCount
 
 # Git repository URL containing profile and setup scripts
 GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
