@@ -35,8 +35,8 @@ for i in range(NUM_NODES):
     clone_command = "git clone %s /local/repository || (cd /local/repository && git pull)" % GIT_REPO_URL
     node.addService(pg.Execute(shell="sh", command=clone_command))
 
-    # Service: run setup.sh
-    node.addService(pg.Execute(shell="sh", command="/local/repository/startup.sh"))
+    # Service: run colloid_startup.sh
+    node.addService(pg.Execute(shell="sh", command="/local/repository/colloid_startup.sh"))
 
 # Print the RSpec
 pc.printRequestRSpec(request)
