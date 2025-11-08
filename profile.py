@@ -17,7 +17,7 @@ pc = portal.Context()
 request = pc.makeRequestRSpec()
 
 # Configuration: 10 nodes
-NUM_NODES = 10
+NUM_NODES = 1
 
 # Git repository URL containing profile and setup scripts
 GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
@@ -40,3 +40,4 @@ for i in range(NUM_NODES):
 
 # Print the RSpec
 pc.printRequestRSpec(request)
+
