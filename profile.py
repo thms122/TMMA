@@ -1,10 +1,9 @@
 """
-CloudLab Profile for 10-node benchmark setup.
 
 Each node:
 - Boots Ubuntu 22.04 LTS
 - Clones a git repository to /local/repository
-- Runs setup.sh from that repository
+- Runs colloid_startup.sh from that repository
 """
 
 import geni.portal as portal
