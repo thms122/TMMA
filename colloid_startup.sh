@@ -17,8 +17,6 @@ echo "===== [STARTUP] $(date) ====="
 # --- Skip if setup already completed ---
 if [ -f "$MARKER_FILE2" ]; then
     echo "Colloid ready to run."
-    sudo chmod +x /local/repository/app.sh
-    sudo /local/repository/app.sh
     exit 0
 fi
 
