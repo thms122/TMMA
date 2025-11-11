@@ -3,7 +3,7 @@ Each node:
 - Boots Ubuntu 22.04 LTS
 - Clones a git repository to /local/repository
 - Runs colloid_startup.sh from that repository
-- Optionally attaches a temporary filesystem (/mydata) of requested size
+- Optionally attaches a temporary filesystem (/local) of requested size
 """
 
 import geni.portal as portal
@@ -32,20 +32,20 @@ GIT_REPO_URL = "https://github.com/thms122/TMMA.git"
 
 # === Node setup ===
 for i in range(NUM_NODES):
-    node_name = f"node{i+1}"
+    node_name = "node%d" % (i + 1)
     node = request.RawPC(node_name)
 
     # Set OS and hardware
     node.hardware_type = "c220g5"  # or another available type on your cluster
     node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops:UBUNTU22-64-STD"
 
-    # Optionally add extra temporary filesystem
+    # Optionally add extra temporary filesystem mounted at /local
     if TEMP_SIZE > 0:
         bs = node.Blockstore("bs_" + node_name, "/local")
-        bs.size = f"{TEMP_SIZE}GB"
+        bs.size = "%dGB" % TEMP_SIZE
 
     # Clone and run repo
-    clone_cmd = f"git clone {GIT_REPO_URL} /local/repository || (cd /local/repository && git pull)"
+    clone_cmd = "git clone %s /local/repository || (cd /local/repository && git pull)" % GIT_REPO_URL
     node.addService(pg.Execute(shell="sh", command=clone_cmd))
 
     chmod_cmd = "sudo chmod +x /local/repository/colloid_startup.sh"
