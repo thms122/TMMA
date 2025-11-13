@@ -14,3 +14,5 @@ sudo sh -c "echo 6 > /proc/sys/kernel/numa_balancing"
 sudo swapoff -a
 sudo sync
 sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
+
+sudo sh -c "echo 100 > /proc/sys/vm/watermark_scale_factor"
