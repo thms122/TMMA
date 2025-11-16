@@ -4,6 +4,7 @@
 # Runs all benchmarks in fixed order
 # Reboots after every single benchmark
 # Correctly resumes after reboot
+# Integrates config.sh actions without overriding THP loop
 # ==========================================
 
 LOGDIR="/local/logs/gapbs_logs"
@@ -50,6 +51,51 @@ set_wm() {
     sudo sysctl -w vm.watermark_scale_factor=$val
 }
 
+# Function: run repository config actions but do NOT override THP when thp=always
+run_repo_config() {
+    local thp_mode=$1
+    echo "--- Running repository config actions (config.sh contents) ---"
+    # Only apply THP tunables here if the desired mode is "never"
+    if [ "$thp_mode" = "never" ]; then
+        echo "Setting THP tunables to 'never' as requested by config.sh (thp=never)"
+        sudo sh -c 'echo "never" > /sys/kernel/mm/transparent_hugepage/defrag'
+        sudo sh -c 'echo "never" > /sys/kernel/mm/transparent_hugepage/enabled'
+    else
+        echo "Skipping config.sh THP lines because outer loop requested thp=$thp_mode"
+    fi
+
+    # Load kernel modules (insmod). If already loaded, insmod will error — that's OK.
+    if [ -f /local/colloid/tpp/tierinit/tierinit.ko ]; then
+        sudo insmod /local/colloid/tpp/tierinit/tierinit.ko || true
+    else
+        echo "Warning: tierinit.ko not found at /local/colloid/tpp/tierinit/tierinit.ko"
+    fi
+
+    if [ -f /local/colloid/tpp/colloid-mon/colloid-mon.ko ]; then
+        sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko || true
+    else
+        echo "Warning: colloid-mon.ko not found at /local/colloid/tpp/colloid-mon/colloid-mon.ko"
+    fi
+
+    if [ -f /local/colloid/tpp/kswapdrst/kswapdrst.ko ]; then
+        sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko || true
+    else
+        echo "Warning: kswapdrst.ko not found at /local/colloid/tpp/kswapdrst/kswapdrst.ko"
+    fi
+
+    sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
+    sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
+
+    # Disable swap and drop caches (dangerous on machines with little RAM; keep as in config.sh)
+    sudo swapoff -a || true
+    sudo sync || true
+    sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
+
+    # NOTE: config.sh sets watermark_scale_factor=100. We do not force it here;
+    # we will let set_wm() from the loop apply the desired value afterwards.
+    echo "--- Finished repository config actions ---"
+}
+
 # Main loop
 skip=true
 if [ "$RESUME" = false ]; then
@@ -62,7 +108,7 @@ for thp in "${THP_MODES[@]}"; do
             bench="${BENCH_NAMES[$i]}"
             cmd="${BENCH_CMDS[$i]}"
 
-            # If resuming, skip until we find the last completed benchmark
+            # If resuming, skip until last finished benchmark
             if [ "$skip" = true ]; then
                 if [[ "$thp" == "$LAST_THP" && "$wm" == "$LAST_WM" && "$bench" == "$LAST_BENCH" ]]; then
                     echo "Found last completed benchmark: $bench (THP=$thp, WM=$wm)"
@@ -78,10 +124,38 @@ for thp in "${THP_MODES[@]}"; do
             echo "Timestamp: $(date)" | tee -a "$logfile"
             echo "Command: $cmd" | tee -a "$logfile"
 
+            # Apply THP requested by main loop first (so subsequent config steps that skip THP won't override)
             set_thp "$thp"
+
+            # Run repository config actions (insmod, numa toggles, swapoff, drop_caches, etc.)
+            # We pass `$thp` so the config step won't forcibly change THP when thp="always".
+            run_repo_config "$thp"
+
+            # Apply the desired watermark_scale_factor from the loop (overrides any value set by config.sh)
             set_wm "$wm"
 
-            $cmd 2>&1 | tee -a "$logfile"
+            echo "--- Running full measurement pipeline ---" | tee -a "$logfile"
+
+            # Pre-run vmstat snapshot
+            cat /proc/vmstat | grep numa_pages_migrated     2>&1 | tee -a "$logfile"
+            cat /proc/vmstat | grep pgpromote_success       2>&1 | tee -a "$logfile"
+            cat /proc/vmstat | grep nr_active_file          2>&1 | tee -a "$logfile"
+
+            # perf timed run with dynamic command substituted here
+            sudo /usr/bin/time --verbose perf stat -a --per-socket \
+                -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
+                -- taskset -c 0,1,2,3,4,5,6,7 $cmd           2>&1 | tee -a "$logfile"
+
+            # Post-run metrics
+            cat /proc/vmstat | grep numa_pages_migrated     2>&1 | tee -a "$logfile"
+            cat /proc/vmstat | grep pgpromote_success       2>&1 | tee -a "$logfile"
+            cat /proc/vmstat | grep nr_active_file          2>&1 | tee -a "$logfile"
+
+            sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | tee -a "$logfile"
+            sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | tee -a "$logfile"
+            sudo cat /proc/sys/vm/watermark_scale_factor                  2>&1 | tee -a "$logfile"
+            sudo cat /proc/sys/vm/zone_reclaim_mode                       2>&1 | tee -a "$logfile"
+            sudo cat /proc/sys/vm/swappiness                              2>&1 | tee -a "$logfile"
 
             echo "=== Finished $bench | THP=$thp | WM=$wm ===" | tee -a "$logfile"
 
@@ -106,8 +180,8 @@ for thp in "${THP_MODES[@]}"; do
                 done
             done
 
-            # --- No next benchmark → all done ---
-            rm -f "$CHECKPOINT"S
+            # --- No next benchmark → done ---
+            rm -f "$CHECKPOINT"
             echo "All benchmarks completed successfully!"
             exit 0
         done

@@ -17,6 +17,7 @@ echo "===== [STARTUP] $(date) ====="
 # --- Skip if setup already completed ---
 if [ -f "$MARKER_FILE2" ]; then
     echo "Colloid ready to run."
+    sudo bash /local/repository/run_gapbs_auto.sh
     exit 0
 fi
 
