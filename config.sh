@@ -15,4 +15,4 @@ sudo swapoff -a
 sudo sync
 sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
 
-sudo sh -c "echo 1000 > /proc/sys/vm/watermark_scale_factor"
+sudo sh -c "echo 2000 > /proc/sys/vm/watermark_scale_factor"
