@@ -21,7 +21,7 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
 # For THP=never, defrag must be never
 DEFRAG_FOR_NEVER=("never")
-WM_VALUES=(10 100 500 1000 2000 3000)
+WM_VALUES=(10 25 50 100 200 500)
 # -----------------------------------------------------------------------------
 # Helpers
 log() { echo "[$(date '+%F %T')] $*"; }
@@ -54,11 +54,11 @@ set_thp_defrag() {
     # defrag can be strings like "defer+madvise"
     sudo sh -c "echo $defrag_val > /sys/kernel/mm/transparent_hugepage/defrag"
 }
-# Apply watermark_scale_factor
-set_wm() {
+# Apply vfs_cache_pressure
+set_vfs() {
     local val=$1
-    log "Setting vm.watermark_scale_factor=$val"
-    sudo sysctl -w vm.watermark_scale_factor="$val"
+    log "Setting vm.vfs_cache_pressure=$val"
+    sudo sysctl -w vm.vfs_cache_pressure="$val"
 }
 # Run repository config actions (insmod etc.). Do NOT override THP enabled if outer loop requested "always".
 run_repo_config() {
@@ -185,8 +185,8 @@ for (( id = start_index; id < TOTAL; id++ )); do
     # Run repo config actions (pass thp so config.sh lines don't override when we requested always)
     run_repo_config "$thp" 2>&1 | tee -a "$logfile"
 
-    # Apply watermark
-    set_wm "$wm" 2>&1 | tee -a "$logfile"
+    # Apply vfs_cache_pressure
+    set_vfs "$wm" 2>&1 | tee -a "$logfile"
 
     echo "--- Running full measurement pipeline ---" | tee -a "$logfile"
 
@@ -212,6 +212,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
     sudo cat /proc/sys/vm/watermark_scale_factor                  2>&1 | tee -a "$logfile"
     sudo cat /proc/sys/vm/zone_reclaim_mode                       2>&1 | tee -a "$logfile"
     sudo cat /proc/sys/vm/swappiness                              2>&1 | tee -a "$logfile"
+    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | tee -a "$logfile"
 
     if [ "$exit_status" -ne 0 ]; then
         log "Benchmark returned non-zero exit status ($exit_status). Will retry this task after reboot."
