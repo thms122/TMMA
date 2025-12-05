@@ -212,9 +212,17 @@ for (( id = start_index; id < TOTAL; id++ )); do
 
     sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | tee -a "$logfile"
     sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | tee -a "$logfile"
-    sudo cat /proc/sys/vm/watermark_scale_factor                  2>&1 | tee -a "$logfile"
-    sudo cat /proc/sys/vm/zone_reclaim_mode                       2>&1 | tee -a "$logfile"
-    sudo cat /proc/sys/vm/swappiness                              2>&1 | tee -a "$logfile"
+    echo "vm.watermark_scale_factor:"  | tee -a "$logfile"
+    sudo cat /proc/sys/vm/watermark_scale_factor | tee -a "$logfile"
+
+    echo "vm.zone_reclaim_mode:"       | tee -a "$logfile"
+    sudo cat /proc/sys/vm/zone_reclaim_mode | tee -a "$logfile"
+
+    echo "vm.swappiness:"               | tee -a "$logfile"
+    sudo cat /proc/sys/vm/swappiness | tee -a "$logfile"
+    
+    echo "vm.vfs_cache_pressure:"       | tee -a "$logfile"
+    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | tee -a "$logfile"
 
     if [ "$exit_status" -ne 0 ]; then
         log "Benchmark returned non-zero exit status ($exit_status). Will retry this task after reboot."
