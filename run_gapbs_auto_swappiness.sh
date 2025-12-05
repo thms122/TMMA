@@ -225,6 +225,8 @@ for (( id = start_index; id < TOTAL; id++ )); do
     echo "vm.vfs_cache_pressure:"       | tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | tee -a "$logfile"
 
+    ls /sys/devices/virtual/memory_tiering/ 2>&1 | tee -a "$logfile"
+    
     if [ "$exit_status" -ne 0 ]; then
         log "Benchmark returned non-zero exit status ($exit_status). Will retry this task after reboot."
         # Do NOT advance the last completed index; leave checkpoint as is (so resume will retry same task).
