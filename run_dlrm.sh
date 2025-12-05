@@ -26,5 +26,4 @@ sudo cat /sys/kernel/mm/transparent_hugepage/defrag
 sudo cat /sys/kernel/mm/transparent_hugepage/enabled
 sudo cat /proc/sys/vm/watermark_scale_factor
 sudo cat /proc/sys/vm/zone_reclaim_mode
-echo "numa_pages_migrated:"
 sudo cat /proc/sys/vm/swappiness
