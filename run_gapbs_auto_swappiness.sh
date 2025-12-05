@@ -7,13 +7,16 @@
 # Author: generated for you
 set -u
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/dlrm_logs"
+LOGDIR="/local/logs/gapbs_logs"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 # Benchmarks (fixed order)
-BENCH_NAMES=( "dlrm")
+BENCH_NAMES=("pr_kron" "pr_twitter" "pr_web" "bc_kron")
 BENCH_CMDS=(
-    "/local/dlrm/bench/dlrm_s_benchmark.sh"
+    "/local/gapbs/pr -u 27 -k 20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+    "/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
 )
 # Parameter values
 THP_MODES=("never" "always")
