@@ -24,7 +24,7 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
 # For THP=never, defrag must be never
 DEFRAG_FOR_NEVER=("never")
-WM_VALUES=(10 100 500 1000 2000 3000)
+WM_VALUES=(10 25 50 100 200 500)
 # -----------------------------------------------------------------------------
 # Helpers
 log() { echo "[$(date '+%F %T')] $*"; }
@@ -243,7 +243,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
 
     # If we get here, the task succeeded. Write its index as last completed, then reboot to continue.
     write_checkpoint "$id"
-    log "=== Finished $bench | THP=$thp | DEFRAG=$defrag | WM=$wm (task id=$id) ==="
+    log "=== Finished $bench | THP=$thp | DEFRAG=$defrag | VFS=$wm (task id=$id) ==="
     log "Rebooting before next benchmark (or exiting if none left)."
     sleep 5
     sudo reboot

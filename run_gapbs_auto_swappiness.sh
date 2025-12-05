@@ -24,7 +24,7 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
 # For THP=never, defrag must be never
 DEFRAG_FOR_NEVER=("never")
-WM_VALUES=(10 100 500 1000 2000 3000)
+WM_VALUES=(0 10 30 60 80 100)
 # -----------------------------------------------------------------------------
 # Helpers
 log() { echo "[$(date '+%F %T')] $*"; }
