@@ -196,7 +196,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
     cat /proc/vmstat | grep nr_active_file          2>&1 | tee -a "$logfile"
 
     # Run the benchmark under perf (time + perf stat). Put the whole invocation in a subshell to capture exit status.
-    sudo /usr/bin/time --verbose perf stat -a --per-socket \
+    sudo /usr/bin/time --verbose /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
         -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
         -- taskset -c 0,1,2,3,4,5,6,7 bash -lc "$cmd" 2>&1 | tee -a "$logfile"
     exit_status=${PIPESTATUS[0]}
