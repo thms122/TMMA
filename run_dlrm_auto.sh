@@ -218,7 +218,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
             log "Wrote initial checkpoint -1 to indicate no tasks completed."
         fi
         sleep 3
-        #sudo reboot
+        sudo reboot
         exit 0
     fi
 
@@ -227,7 +227,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
     log "=== Finished $bench | THP=$thp | DEFRAG=$defrag | WM=$wm (task id=$id) ==="
     log "Rebooting before next benchmark (or exiting if none left)."
     sleep 5
-    #sudo reboot
+    sudo reboot
     exit 0
 done
 
