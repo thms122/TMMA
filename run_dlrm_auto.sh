@@ -152,26 +152,26 @@ for (( id = start_index; id < TOTAL; id++ )); do
     logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}.log"
     log "=== TASK $id/$((TOTAL-1)): $bench | THP=$thp | DEFRAG=$defrag | WM=$wm ==="
     log "Logfile: $logfile"
-    echo "Timestamp: $(date)" | tee -a "$logfile"
-    echo "Task ID: $id" | tee -a "$logfile"
-    echo "Command: $cmd" | tee -a "$logfile"
+    echo "Timestamp: $(date)" | sudo tee -a "$logfile"
+    echo "Task ID: $id" | sudo tee -a "$logfile"
+    echo "Command: $cmd" | sudo tee -a "$logfile"
 
     # Apply THP enabled and defrag as requested BEFORE repo config so config.sh won't override when we want 'always'
-    set_thp_enabled "$thp" 2>&1 | tee -a "$logfile"
-    set_thp_defrag "$defrag" 2>&1 | tee -a "$logfile"
+    set_thp_enabled "$thp" 2>&1 | sudo tee -a "$logfile"
+    set_thp_defrag "$defrag" 2>&1 | sudo tee -a "$logfile"
 
     # Run repo config actions (pass thp so config.sh lines don't override when we requested always)
-    run_repo_config "$thp" 2>&1 | tee -a "$logfile"
+    run_repo_config "$thp" 2>&1 | sudo tee -a "$logfile"
 
     # Apply watermark
-    set_wm "$wm" 2>&1 | tee -a "$logfile"
+    set_wm "$wm" 2>&1 | sudo tee -a "$logfile"
 
-    echo "--- Running full measurement pipeline ---" | tee -a "$logfile"
+    echo "--- Running full measurement pipeline ---" | sudo tee -a "$logfile"
 
     # Pre-run vmstat snapshot
-    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | tee -a "$logfile"
-    cat /proc/vmstat | grep pgpromote_success       2>&1 | tee -a "$logfile"
-    cat /proc/vmstat | grep nr_active_file          2>&1 | tee -a "$logfile"
+    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
 
     # Run the benchmark under perf (time + perf stat). Put the whole invocation in a subshell to capture exit status.
     sudo /usr/bin/time --verbose \
@@ -181,29 +181,29 @@ for (( id = start_index; id < TOTAL; id++ )); do
     --mini-batch-size=2048 --test-mini-batch-size=16384 --test-num-workers=0 --num-batches=400 --data-generation=random \
     --arch-mlp-bot=2048-2048-512 --arch-mlp-top=1024-1024-1024-1 --arch-sparse-feature-size=512 \
     --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=200 --arch-interaction-op=dot \
-    --numpy-rand-seed=727 2>&1 | tee -a "$logfile"
+    --numpy-rand-seed=727 2>&1 | sudo tee -a "$logfile"
 
     exit_status=${PIPESTATUS[0]}
-    echo "Exit status: $exit_status" | tee -a "$logfile"
+    echo "Exit status: $exit_status" | sudo tee -a "$logfile"
 
     # Post-run metrics
-    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | tee -a "$logfile"
-    cat /proc/vmstat | grep pgpromote_success       2>&1 | tee -a "$logfile"
-    cat /proc/vmstat | grep nr_active_file          2>&1 | tee -a "$logfile"
+    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
 
-    sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | tee -a "$logfile"
-    sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | tee -a "$logfile"
-    echo "vm.watermark_scale_factor:"  | tee -a "$logfile"
-    sudo cat /proc/sys/vm/watermark_scale_factor | tee -a "$logfile"
+    sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | sudo tee -a "$logfile"
+    echo "vm.watermark_scale_factor:"  | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/watermark_scale_factor | sudo tee -a "$logfile"
 
-    echo "vm.zone_reclaim_mode:"       | tee -a "$logfile"
-    sudo cat /proc/sys/vm/zone_reclaim_mode | tee -a "$logfile"
+    echo "vm.zone_reclaim_mode:"       | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/zone_reclaim_mode | sudo tee -a "$logfile"
 
-    echo "vm.swappiness:"               | tee -a "$logfile"
-    sudo cat /proc/sys/vm/swappiness | tee -a "$logfile"
+    echo "vm.swappiness:"               | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/swappiness | sudo tee -a "$logfile"
     
-    echo "vm.vfs_cache_pressure:"       | tee -a "$logfile"
-    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | tee -a "$logfile"
+    echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
 
     if [ "$exit_status" -ne 0 ]; then
         log "Benchmark returned non-zero exit status ($exit_status). Will retry this task after reboot."
