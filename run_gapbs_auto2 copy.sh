@@ -7,13 +7,16 @@
 # Author: generated for you
 set -u
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/dlrm_logs"
+LOGDIR="/local/logs/gapbs_logs"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 # Benchmarks (fixed order)
-BENCH_NAMES=("dlrm")
+BENCH_NAMES=("pr_kron" "pr_twitter" "pr_web" "bc_kron")
 BENCH_CMDS=(
-/local/dlrm/dlrm_s_pytorch.py --mini-batch-size=2048 --test-mini-batch-size=16384 --test-num-workers=0 --num-batches=400 --data-generation=random --arch-mlp-bot=2048-2048-512 --arch-mlp-top=1024-1024-1024-1 --arch-sparse-feature-size=512 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=200 --arch-interaction-op=dot --numpy-rand-seed=727
+    "/local/gapbs/pr -u 27 -k 20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+    "/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
 )
 # Parameter values
 THP_MODES=("never" "always")
@@ -102,6 +105,24 @@ run_repo_config() {
 
     log "--- Finished repository config actions ---"
 }
+# Validate graph file when a command contains "-f <file>"
+validate_graph_in_cmd() {
+    local cmd="$1"
+    # find -f argument
+    if echo "$cmd" | grep -q -- "-f"; then
+        # extract file following -f
+        local file
+        # robustly extract argument after -f
+        file=$(echo "$cmd" | sed -nE 's/.*-f[[:space:]]+([^[:space:]]+).*/\1/p')
+        if [ -n "$file" ]; then
+            if [ ! -f "$file" ]; then
+                log "ERROR: required graph file not found: $file"
+                return 1
+            fi
+        fi
+    fi
+    return 0
+}
 # -----------------------------------------------------------------------------
 # Build linear TASKS list (each line: idx|thp|defrag|wm|bench|cmd)
 TASKS=()
@@ -124,7 +145,6 @@ for thp in "${THP_MODES[@]}"; do
     done
 done
 TOTAL=${#TASKS[@]}
-printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
 log "Total tasks to run: $TOTAL"
 # Determine start index from checkpoint (last completed index + 1)
 last_completed_index=$(read_checkpoint)
@@ -150,6 +170,17 @@ for (( id = start_index; id < TOTAL; id++ )); do
     echo "Task ID: $id" | tee -a "$logfile"
     echo "Command: $cmd" | tee -a "$logfile"
 
+    # Validate possible graph file
+    if ! validate_graph_in_cmd "$cmd"; then
+        echo "Graph file missing for command. Will write checkpoint for same index and reboot." | tee -a "$logfile"
+        # do not mark this task as completed; write last completed as id-1 (or keep previous)
+        # keep checkpoint unchanged (last_completed_index) so start will retry this task.
+        log "Rebooting to allow investigation (missing graph)."
+        sleep 3
+        sudo reboot
+        exit 0
+    fi
+
     # Apply THP enabled and defrag as requested BEFORE repo config so config.sh won't override when we want 'always'
     set_thp_enabled "$thp" 2>&1 | tee -a "$logfile"
     set_thp_defrag "$defrag" 2>&1 | tee -a "$logfile"
@@ -170,7 +201,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
     # Run the benchmark under perf (time + perf stat). Put the whole invocation in a subshell to capture exit status.
     sudo /usr/bin/time --verbose /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
         -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
-        -- taskset -c 0,1,2,3,4,5,6,7 /local/dlrm/venv/bin/python -c "$cmd" 2>&1 | tee -a "$logfile"
+        -- taskset -c 0,1,2,3,4,5,6,7 bash -lc "$cmd" 2>&1 | tee -a "$logfile"
     exit_status=${PIPESTATUS[0]}
     echo "Exit status: $exit_status" | tee -a "$logfile"
 
@@ -206,7 +237,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
             log "Wrote initial checkpoint -1 to indicate no tasks completed."
         fi
         sleep 3
-        #sudo reboot
+        sudo reboot
         exit 0
     fi
 
@@ -215,7 +246,7 @@ for (( id = start_index; id < TOTAL; id++ )); do
     log "=== Finished $bench | THP=$thp | DEFRAG=$defrag | WM=$wm (task id=$id) ==="
     log "Rebooting before next benchmark (or exiting if none left)."
     sleep 5
-    #sudo reboot
+    sudo reboot
     exit 0
 done
 
