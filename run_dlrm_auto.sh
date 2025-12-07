@@ -5,6 +5,12 @@
 # Checkpoint format: single integer -> index of last COMPLETED task in the TASKS list.
 #
 # Author: generated for you
+#!/bin/bash
+source /local/dlrm/venv/bin/activate
+
+echo "Using python: $(which python)"
+python -c "import torch, numpy; print('torch OK', torch.__version__); print('numpy OK', numpy.__version__)"
+
 set -u
 # -----------------------------------------------------------------------------
 LOGDIR="/local/logs/dlrm_logs"
