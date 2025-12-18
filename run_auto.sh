@@ -36,7 +36,7 @@ BENCH_NAMES=(
 )
 
 BENCH_CMDS=(
-  "python dlrm_s_pytorch.py --mini-batch-size=2 --data-size=6"
+  "python /local/dlrm/dlrm_s_pytorch.py --mini-batch-size=2 --data-size=6"
 )
 
 # -----------------------------------------------------------------------------
