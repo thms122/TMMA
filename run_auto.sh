@@ -158,6 +158,12 @@ for (( id=start_index; id<TOTAL; id++ )); do
     set_vfs  "$vfs"  2>&1 | sudo tee -a "$logfile"
     set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
 
+    # Pre-run metrics
+    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
+
+    #Command execution with perf and time
     sudo /usr/bin/time --verbose \
     /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
@@ -165,6 +171,25 @@ for (( id=start_index; id<TOTAL; id++ )); do
 
     exit_status=${PIPESTATUS[0]}
     echo "Exit status: $exit_status" | sudo tee -a "$logfile"
+
+    # Post-run metrics
+    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
+    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
+
+    sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | sudo tee -a "$logfile"
+    echo "vm.watermark_scale_factor:"  | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/watermark_scale_factor | sudo tee -a "$logfile"
+
+    echo "vm.zone_reclaim_mode:"       | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/zone_reclaim_mode | sudo tee -a "$logfile"
+
+    echo "vm.swappiness:"               | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/swappiness | sudo tee -a "$logfile"
+    
+    echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
+    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
 
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
