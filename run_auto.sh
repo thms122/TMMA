@@ -9,10 +9,6 @@ set -u
 # -----------------------------------------------------------------------------
 # ENV SETUP
 # -----------------------------------------------------------------------------
-source /local/dlrm/venv/bin/activate
-
-echo "Using python: $(which python)"
-python -c "import torch, numpy; print('torch OK', torch.__version__); print('numpy OK', numpy.__version__)"
 
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
@@ -40,7 +36,7 @@ BENCH_NAMES=(
 )
 
 BENCH_CMDS=(
-  "python /local/dlrm/dlrm_s_pytorch.py \
+  "/local/dlrm/venv/bin/python /local/dlrm/dlrm_s_pytorch.py \
     --mini-batch-size=2048 \
     --test-mini-batch-size=16384 \
     --test-num-workers=0 \
