@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# run_all_benchmarks.sh
+# Runs all benchmarks for each THP x DEFRAG x WM x VFS x SWAP combination.
+# Reboots after every single benchmark and correctly resumes after reboot.
+# Checkpoint format: single integer -> index of last COMPLETED task.
+
+set -u
+
+# -----------------------------------------------------------------------------
+# ENV SETUP
+# -----------------------------------------------------------------------------
+source /local/dlrm/venv/bin/activate
+
+echo "Using python: $(which python)"
+python -c "import torch, numpy; print('torch OK', torch.__version__); print('numpy OK', numpy.__version__)"
+
+# -----------------------------------------------------------------------------
+# LOGGING / CHECKPOINT
+# -----------------------------------------------------------------------------
+LOGDIR="/local/logs/dlrm_logs"
+mkdir -p "$LOGDIR"
+CHECKPOINT="$LOGDIR/checkpoint.idx"
+
+log() { echo "[$(date '+%F %T')] $*"; }
+
+write_checkpoint() {
+    echo "$1" > "$CHECKPOINT"
+    sync
+}
+
+read_checkpoint() {
+    [ -f "$CHECKPOINT" ] && cat "$CHECKPOINT" || echo "-1"
+}
+
+# -----------------------------------------------------------------------------
+# BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
+# -----------------------------------------------------------------------------
+BENCH_NAMES=(
+  "dlrm"
+)
+
+BENCH_CMDS=(
+  "python /local/dlrm/dlrm_s_pytorch.py \
+    --mini-batch-size=2048 \
+    --test-mini-batch-size=16384 \
+    --test-num-workers=0 \
+    --num-batches=400 \
+    --data-generation=random \
+    --arch-mlp-bot=2048-2048-512 \
+    --arch-mlp-top=1024-1024-1024-1 \
+    --arch-sparse-feature-size=512 \
+    --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 \
+    --num-indices-per-lookup=200 \
+    --arch-interaction-op=dot \
+    --numpy-rand-seed=727"
+)
+
+# -----------------------------------------------------------------------------
+# PARAMETER SWEEPS
+# -----------------------------------------------------------------------------
+THP_MODES=("never" "always")
+
+DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
+DEFRAG_FOR_NEVER=("never")
+
+WM_VALUES=(10 100 500 1000)
+VFS_VALUES=(0 50 100 500)
+SWAP_VALUES=(0 10 60 100)
+
+# -----------------------------------------------------------------------------
+# SYSTEM TUNING HELPERS
+# -----------------------------------------------------------------------------
+set_thp_enabled() {
+    sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/enabled"
+}
+
+set_thp_defrag() {
+    sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/defrag"
+}
+
+set_wm() {
+    sudo sysctl -w vm.watermark_scale_factor="$1"
+}
+
+set_vfs() {
+    sudo sysctl -w vm.vfs_cache_pressure="$1"
+}
+
+set_swap() {
+    sudo sysctl -w vm.swappiness="$1"
+}
+
+run_repo_config() {
+    local thp_mode=$1
+
+    if [ "$thp_mode" = "never" ]; then
+        sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' || true
+        sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag' || true
+    fi
+
+    sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null || true
+    sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null || true
+    sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null || true
+
+    sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
+    sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
+
+    sudo swapoff -a || true
+    sudo sync
+    sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
+}
+
+# -----------------------------------------------------------------------------
+# BUILD TASK LIST
+# -----------------------------------------------------------------------------
+TASKS=()
+idx=0
+
+for thp in "${THP_MODES[@]}"; do
+    if [ "$thp" = "never" ]; then
+        defrag_list=("${DEFRAG_FOR_NEVER[@]}")
+    else
+        defrag_list=("${DEFRAG_FOR_ALWAYS[@]}")
+    fi
+
+    for defrag in "${defrag_list[@]}"; do
+        for wm in "${WM_VALUES[@]}"; do
+            for vfs in "${VFS_VALUES[@]}"; do
+                for swap in "${SWAP_VALUES[@]}"; do
+                    for i in "${!BENCH_NAMES[@]}"; do
+                        TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
+                        idx=$((idx+1))
+                    done
+                done
+            done
+        done
+    done
+done
+
+TOTAL=${#TASKS[@]}
+printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
+log "Total tasks: $TOTAL"
+
+# -----------------------------------------------------------------------------
+# RESUME FROM CHECKPOINT
+# -----------------------------------------------------------------------------
+last_completed=$(read_checkpoint)
+start_index=$((last_completed + 1))
+
+if [ "$start_index" -ge "$TOTAL" ]; then
+    log "All tasks completed."
+    rm -f "$CHECKPOINT"
+    exit 0
+fi
+
+log "Resuming from task index $start_index"
+
+# -----------------------------------------------------------------------------
+# MAIN LOOP (ONE TASK PER BOOT)
+# -----------------------------------------------------------------------------
+for (( id=start_index; id<TOTAL; id++ )); do
+    IFS='|' read -r thp defrag wm vfs swap bench cmd <<< "${TASKS[$id]}"
+
+    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}.log"
+
+    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap"
+    echo "Command: $cmd" | sudo tee -a "$logfile"
+
+    set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
+    set_thp_defrag  "$defrag" 2>&1 | sudo tee -a "$logfile"
+    run_repo_config "$thp"    2>&1 | sudo tee -a "$logfile"
+
+    set_wm   "$wm"   2>&1 | sudo tee -a "$logfile"
+    set_vfs  "$vfs"  2>&1 | sudo tee -a "$logfile"
+    set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
+
+    sudo /usr/bin/time --verbose \
+    /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
+    -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
+    -- taskset -c 0,1,2,3,4,5,6,7  "$cmd" 2>&1 | sudo tee -a "$logfile"
+
+    exit_status=${PIPESTATUS[0]}
+    echo "Exit status: $exit_status" | sudo tee -a "$logfile"
+
+    if [ "$exit_status" -ne 0 ]; then
+        log "Task failed, retrying after reboot"
+        [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
+        #sudo reboot
+        exit 0
+    fi
+
+    write_checkpoint "$id"
+    log "Task completed, rebooting"
+    sleep 5
+    #sudo reboot
+    exit 0
+done
+
+log "All tasks finished."
+rm -f "$CHECKPOINT"
+exit 0
