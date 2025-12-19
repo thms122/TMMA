@@ -36,7 +36,7 @@ BENCH_NAMES=(
 )
 
 BENCH_CMDS=(
-  "python /local/dlrm/dlrm_s_pytorch.py --mini-batch-size=2 --data-size=6"
+  "/local/dlrm/dlrm_s_pytorch.py --mini-batch-size=128 --test-mini-batch-size=256 --test-num-workers=0 --num-batches=5 --data-generation=random --arch-mlp-bot=2048-2048-512 --arch-mlp-top=1024-1024-1024-1 --arch-sparse-feature-size=512 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=200 --arch-interaction-op=dot --numpy-rand-seed=727"
 )
 
 # -----------------------------------------------------------------------------
