@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/dlrm_logs"
+LOGDIR="/local/logs/llama_logs"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -32,11 +32,11 @@ read_checkpoint() {
 # BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
 # -----------------------------------------------------------------------------
 BENCH_NAMES=(
-  "dlrm"
+  "llama"
 )
 
 BENCH_CMDS=(
-  "/local/dlrm/dlrm_s_pytorch.py --mini-batch-size=128 --test-mini-batch-size=256 --test-num-workers=0 --num-batches=5 --data-generation=random --arch-mlp-bot=2048-2048-512 --arch-mlp-top=1024-1024-1024-1 --arch-sparse-feature-size=512 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=200 --arch-interaction-op=dot --numpy-rand-seed=727"
+    "/local/llama.cpp/build/bin/llama-bench /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf   -t 8   -p 64   -n 128"
 )
 
 # -----------------------------------------------------------------------------
