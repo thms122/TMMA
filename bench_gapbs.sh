@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/dlrm_logs"
+LOGDIR="/local/logs/gapbs_logs"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -32,11 +32,14 @@ read_checkpoint() {
 # BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
 # -----------------------------------------------------------------------------
 BENCH_NAMES=(
-  "dlrm"
+  "pr_kron" "pr_twitter" "pr_web" "bc_kron"
 )
 
 BENCH_CMDS=(
-  "/local/dlrm/dlrm_s_pytorch.py --mini-batch-size=128 --test-mini-batch-size=256 --test-num-workers=0 --num-batches=5 --data-generation=random --arch-mlp-bot=2048-2048-512 --arch-mlp-top=1024-1024-1024-1 --arch-sparse-feature-size=512 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=200 --arch-interaction-op=dot --numpy-rand-seed=727"
+    "/local/gapbs/pr -u 27 -k 20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+    "/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
 )
 
 # -----------------------------------------------------------------------------
