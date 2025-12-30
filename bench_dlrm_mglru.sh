@@ -82,9 +82,9 @@ run_repo_config() {
         sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag' || true
     fi
 
-    sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null || true
+    sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null 
+    sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null 
+    sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null 
 
     sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
     sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
@@ -193,7 +193,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
 
     echo "mm.min_ttl_ms:"       | sudo tee -a "$logfile"
-    sudo cat /sys/kernel/mm/lru_gen/min_ttl_ms
+    sudo cat /sys/kernel/mm/lru_gen/min_ttl_ms 2>&1 | sudo tee -a "$logfile"
 
     ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
 
