@@ -2,7 +2,7 @@ sudo bash /local/repository/config.sh
 cat /proc/vmstat | grep numa_pages_migrated
 cat /proc/vmstat | grep pgpromote_success
 cat /proc/vmstat | grep nr_active_file
-sudo /usr/bin/time --verbose /users/thmsvlk/bin/perf stat -a --per-socket -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles -- taskset -c 0,1,2,3,4,5,6,7 /local/llama.cpp/build/bin/llama-bench   -m /users/thmsvlk/Meta-Llama-3-8B-Instruct.Q8_0.gguf   -t 8   -p 2   -n 4
+sudo /usr/bin/time --verbose /users/thmsvlk/bin/perf stat -a --per-socket -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles -- taskset -c 0,1,2,3,4,5,6,7 /local/llama.cpp/build/bin/llama-bench   -m /users/thmsvlk/Meta-Llama-3-8B-Instruct.Q8_0.gguf   -t 8   -p 4   -n 32
 cat /proc/vmstat | grep numa_pages_migrated
 cat /proc/vmstat | grep pgpromote_success
 cat /proc/vmstat | grep nr_active_file
