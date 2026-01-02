@@ -48,8 +48,9 @@ DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
-VFS_VALUES=(0 50 100 500)
-SWAP_VALUES=(0 10 60 100)
+VFS_VALUES=(100)
+SWAP_VALUES=(60)
+MGLRU_VALUES=(0 20 50 100 200)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -74,6 +75,17 @@ set_swap() {
     sudo sysctl -w vm.swappiness="$1"
 }
 
+# Fixed MGLRU toggle
+set_mglru() {
+    echo 0x7 | sudo tee /sys/kernel/mm/lru_gen/enabled
+}
+
+# Optional: set min TTL for MGLRU
+set_mglru_ttl() {
+    local ttl="$1"
+    echo "$ttl" | sudo tee /sys/kernel/mm/lru_gen/min_ttl_ms
+}
+
 run_repo_config() {
     local thp_mode=$1
 
@@ -92,7 +104,6 @@ run_repo_config() {
     sudo swapoff -a || true
     sudo sync
     sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
-    sudo sh -c 'echo 100 /sys/kernel/mm/lru_gen/min_ttl_ms' || true
 }
 
 # -----------------------------------------------------------------------------
@@ -112,9 +123,11 @@ for thp in "${THP_MODES[@]}"; do
         for wm in "${WM_VALUES[@]}"; do
             for vfs in "${VFS_VALUES[@]}"; do
                 for swap in "${SWAP_VALUES[@]}"; do
-                    for i in "${!BENCH_NAMES[@]}"; do
-                        TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
-                        idx=$((idx+1))
+                    for mglru in "${MGLRU_VALUES[@]}"; do
+                        for i in "${!BENCH_NAMES[@]}"; do
+                            TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${mglru}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
+                            idx=$((idx+1))
+                        done
                     done
                 done
             done
@@ -144,11 +157,11 @@ log "Resuming from task index $start_index"
 # MAIN LOOP (ONE TASK PER BOOT)
 # -----------------------------------------------------------------------------
 for (( id=start_index; id<TOTAL; id++ )); do
-    IFS='|' read -r thp defrag wm vfs swap bench cmd <<< "${TASKS[$id]}"
+    IFS='|' read -r thp defrag wm vfs swap mglru bench cmd <<< "${TASKS[$id]}"
 
-    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}.log"
+    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_MGLRU-${mglru}.log"
 
-    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap"
+    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap MGLRU=$mglru"
     echo "Command: $cmd" | sudo tee -a "$logfile"
 
     set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
@@ -158,6 +171,9 @@ for (( id=start_index; id<TOTAL; id++ )); do
     set_wm   "$wm"   2>&1 | sudo tee -a "$logfile"
     set_vfs  "$vfs"  2>&1 | sudo tee -a "$logfile"
     set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
+    # Set MGLRU and optionally TTL
+    set_mglru  2>&1 | sudo tee -a "$logfile"
+    set_mglru_ttl "$mglru"    2>&1 | sudo tee -a "$logfile"   # example TTL
 
     # Pre-run metrics
     cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
@@ -192,8 +208,12 @@ for (( id=start_index; id<TOTAL; id++ )); do
     echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
 
-    echo "mm.min_ttl_ms:"       | sudo tee -a "$logfile"
-    sudo cat /sys/kernel/mm/lru_gen/min_ttl_ms 2>&1 | sudo tee -a "$logfile"
+    echo "mm.lru_gen.enabled:"       | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/lru_gen/enabled                    2>&1 | sudo tee -a "$logfile"
+
+    echo "mm.lru_gen.min_ttl_ms:"       | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/lru_gen/min_ttl_ms                     2>&1 | sudo tee -a "$logfile"
+
 
     ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
 

@@ -82,16 +82,14 @@ run_repo_config() {
         sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag' || true
     fi
 
-    sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null || true
+    sudo insmod /local/Linux-6-16-Tiers/tierinit.ko 2>/dev/null || true
 
-    sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
-    sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
+    sudo sh -c "echo 2 > /proc/sys/kernel/numa_balancing" 
+
+    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
 
     sudo swapoff -a || true
     sudo sync
-    sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
 }
 
 # -----------------------------------------------------------------------------
@@ -165,7 +163,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
 
     #Command execution with perf and time
     sudo /usr/bin/time --verbose \
-    /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
+    /local/Linux-6-16-Tiers/linux-6.16.1/tools/perf stat -a --per-socket \
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
     -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
 
