@@ -36,7 +36,7 @@ BENCH_NAMES=(
 )
 
 BENCH_CMDS=(
-    "/local/llama.cpp/build/bin/llama-bench /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf   -t 8   -p 64   -n 128"
+    "/local/llama.cpp/build/bin/llama-bench   -m /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf -t 8 -p 1 -n 2"
 )
 
 # -----------------------------------------------------------------------------
