@@ -190,6 +190,8 @@ for (( id=start_index; id<TOTAL; id++ )); do
     
     echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
+    
+    ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
 
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
