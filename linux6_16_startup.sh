@@ -22,7 +22,7 @@ fi
 
 if [ -f "$MARKER_FILE" ]; then
     echo "Setup already completed. Building linux_6.16-mon kernel module."
-    cd /local/Linux-6-16-Tiers
+    cd /local/repository/Linux-6-16-Tiers
     make 
 
     # --- Limit node0 memory to 8GB ---
@@ -47,7 +47,7 @@ sudo apt-get install -y build-essential libncurses-dev bison flex libssl-dev \
     linux-tools-$(uname -r) python3 python3-pip
 
 echo "===== [3/9] Downloading Linux 6.3 kernel source ====="
-cd /local/Linux-6-16-Tiers/linux-6.16.1
+cd /local/repository/Linux-6-16-Tiers/linux-6.16.1
 
 echo "===== [4/9] Preparing kernel configuration ====="
 scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYS
