@@ -44,7 +44,7 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise" "madvise")
+DEFRAG_FOR_ALWAYS=("always" "never")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
