@@ -167,6 +167,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
     -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
 
+
     exit_status=${PIPESTATUS[0]}
     echo "Exit status: $exit_status" | sudo tee -a "$logfile"
 
