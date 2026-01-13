@@ -50,7 +50,7 @@ DEFRAG_FOR_NEVER=("never")
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
-MGLRU_VALUES=(0 5 10 15 50)
+MGLRU_VALUES=(0 5 10 20 50)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -220,14 +220,14 @@ for (( id=start_index; id<TOTAL; id++ )); do
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
         [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
-        sudo reboot
+        #sudo reboot
         exit 0
     fi
 
     write_checkpoint "$id"
     log "Task completed, rebooting"
     sleep 5
-    sudo reboot
+    #sudo reboot
     exit 0
 done
 
