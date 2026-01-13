@@ -165,7 +165,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     sudo /usr/bin/time --verbose \
     /local/Linux-6-16-Tiers/linux-6.16.1/tools/perf/perf stat -a --per-socket \
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
-    -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
+    -- numactl -N 0 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
 
 
     exit_status=${PIPESTATUS[0]}
@@ -195,14 +195,14 @@ for (( id=start_index; id<TOTAL; id++ )); do
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
         [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
-        sudo reboot
+        #sudo reboot
         exit 0
     fi
 
     write_checkpoint "$id"
     log "Task completed, rebooting"
     sleep 5
-    sudo reboot
+    #sudo reboot
     exit 0
 done
 
