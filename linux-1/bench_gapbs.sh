@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/llama_logs"
+LOGDIR="/local/logs/gapbs_logs_l1"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -32,11 +32,14 @@ read_checkpoint() {
 # BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
 # -----------------------------------------------------------------------------
 BENCH_NAMES=(
-  "llama"
+  "pr_kron" "pr_twitter" "pr_web" "bc_kron"
 )
 
 BENCH_CMDS=(
-    "/local/llama.cpp/build/bin/llama-bench   -m /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf -t 8 -p 1 -n 2"
+    "/local/gapbs/pr -u 27 -k 20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+    "/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
 )
 
 # -----------------------------------------------------------------------------
@@ -44,12 +47,12 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("always" "never")
+DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 10 60 100)
+SWAP_VALUES=(60)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -86,7 +89,7 @@ run_repo_config() {
 
     sudo sh -c "echo 2 > /proc/sys/kernel/numa_balancing" 
 
-    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
+    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
 
     sudo swapoff -a || true
     sudo sync
@@ -165,7 +168,8 @@ for (( id=start_index; id<TOTAL; id++ )); do
     sudo /usr/bin/time --verbose \
     /local/Linux-6-16-Tiers/linux-6.16.1/tools/perf/perf stat -a --per-socket \
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
-    -- numactl -N 0 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
+    -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
+    
 
     exit_status=${PIPESTATUS[0]}
     echo "Exit status: $exit_status" | sudo tee -a "$logfile"
