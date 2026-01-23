@@ -16,3 +16,6 @@ sudo sync
 sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
 
 sudo sh -c "echo 10 > /proc/sys/vm/watermark_scale_factor"
+sudo sh -c "echo 100 > /proc/sys/vm/vfs_cache_pressure"
+sudo sh -c "echo 60 > /proc/sys/vm/swappiness"
+sudo sh -c "echo 0 > /proc/sys/vm/zone_reclaim_mode"
