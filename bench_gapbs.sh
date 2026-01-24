@@ -32,7 +32,7 @@ read_checkpoint() {
 # BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
 # -----------------------------------------------------------------------------
 BENCH_NAMES=(
-  "pr_kron" "pr_twitter" "pr_web" "bc_kron"
+  "pr_synth" "pr_twitter" "pr_web" "bc_kron"
 )
 
 BENCH_CMDS=(
