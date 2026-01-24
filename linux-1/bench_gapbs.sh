@@ -52,7 +52,7 @@ DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(60)
+SWAP_VALUES=(0 1 100)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
