@@ -114,15 +114,21 @@ for thp in "${THP_MODES[@]}"; do
         for wm in "${WM_VALUES[@]}"; do
             for vfs in "${VFS_VALUES[@]}"; do
                 for swap in "${SWAP_VALUES[@]}"; do
-                    for i in "${!BENCH_NAMES[@]}"; do
-                        TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
-                        idx=$((idx+1))
+                    for zone in "${ZONE_VALUES[@]}"; do
+                        for i in "${!BENCH_NAMES[@]}"; do
+                            TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${zone}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
+                            idx=$((idx+1))
+                        done
                     done
                 done
             done
         done
     done
 done
+
+TOTAL=${#TASKS[@]}
+printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
+log "Total tasks: $TOTAL"
 
 TOTAL=${#TASKS[@]}
 printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
@@ -201,7 +207,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
         [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
-        #sudo reboot
+        sudo reboot
         exit 0
     fi
 
