@@ -207,7 +207,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     if [ "$exit_status" -ne 0 ]; then
         log "Task failed, retrying after reboot"
         [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
-        sudo reboot
+        #sudo reboot
         exit 0
     fi
 
