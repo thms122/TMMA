@@ -148,7 +148,7 @@ log "Resuming from task index $start_index"
 # MAIN LOOP (ONE TASK PER BOOT)
 # -----------------------------------------------------------------------------
 for (( id=start_index; id<TOTAL; id++ )); do
-    IFS='|' read -r thp defrag wm vfs swap bench cmd <<< "${TASKS[$id]}"
+    IFS='|' read -r thp defrag wm vfs swap zone bench cmd <<< "${TASKS[$id]}"
 
     logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}.log"
 
