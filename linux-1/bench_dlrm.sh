@@ -49,7 +49,7 @@ DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(100)
+SWAP_VALUES=(60)
 ZONE_VALUES=(1 3 7)
 
 # -----------------------------------------------------------------------------
