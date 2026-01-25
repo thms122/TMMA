@@ -150,9 +150,9 @@ log "Resuming from task index $start_index"
 for (( id=start_index; id<TOTAL; id++ )); do
     IFS='|' read -r thp defrag wm vfs swap bench cmd <<< "${TASKS[$id]}"
 
-    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}.log"
+    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}.log"
 
-    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap"
+    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap zone=$zone"
     echo "Command: $cmd" | sudo tee -a "$logfile"
 
     set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
