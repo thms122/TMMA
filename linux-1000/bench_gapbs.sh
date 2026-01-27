@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/gapbs_logs"
+LOGDIR="/local/logs/gapbs_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -52,7 +52,8 @@ DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 1 100)
+SWAP_VALUES=(60)
+ZONE_VALUES=(1 3 7)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -75,6 +76,10 @@ set_vfs() {
 
 set_swap() {
     sudo sysctl -w vm.swappiness="$1"
+}
+
+set_zone_reclaim() {
+    sudo sysctl -w vm.zone_reclaim_mode="$1"
 }
 
 run_repo_config() {
@@ -112,15 +117,21 @@ for thp in "${THP_MODES[@]}"; do
         for wm in "${WM_VALUES[@]}"; do
             for vfs in "${VFS_VALUES[@]}"; do
                 for swap in "${SWAP_VALUES[@]}"; do
-                    for i in "${!BENCH_NAMES[@]}"; do
-                        TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
-                        idx=$((idx+1))
+                    for zone in "${ZONE_VALUES[@]}"; do
+                        for i in "${!BENCH_NAMES[@]}"; do
+                            TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${zone}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
+                            idx=$((idx+1))
+                        done
                     done
                 done
             done
         done
     done
 done
+
+TOTAL=${#TASKS[@]}
+printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
+log "Total tasks: $TOTAL"
 
 TOTAL=${#TASKS[@]}
 printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
@@ -144,11 +155,11 @@ log "Resuming from task index $start_index"
 # MAIN LOOP (ONE TASK PER BOOT)
 # -----------------------------------------------------------------------------
 for (( id=start_index; id<TOTAL; id++ )); do
-    IFS='|' read -r thp defrag wm vfs swap bench cmd <<< "${TASKS[$id]}"
+    IFS='|' read -r thp defrag wm vfs swap zone bench cmd <<< "${TASKS[$id]}"
 
-    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}.log"
+    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}.log"
 
-    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap"
+    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap zone=$zone"
     echo "Command: $cmd" | sudo tee -a "$logfile"
 
     set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
@@ -158,6 +169,8 @@ for (( id=start_index; id<TOTAL; id++ )); do
     set_wm   "$wm"   2>&1 | sudo tee -a "$logfile"
     set_vfs  "$vfs"  2>&1 | sudo tee -a "$logfile"
     set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
+
+    set_zone_reclaim "$zone" 2>&1 | sudo tee -a "$logfile" 
 
     # Pre-run metrics
     cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
@@ -169,7 +182,6 @@ for (( id=start_index; id<TOTAL; id++ )); do
     /local/Linux-6-16-Tiers/linux-6.16.1/tools/perf/perf stat -a --per-socket \
     -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
     -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
-    
 
     exit_status=${PIPESTATUS[0]}
     echo "Exit status: $exit_status" | sudo tee -a "$logfile"

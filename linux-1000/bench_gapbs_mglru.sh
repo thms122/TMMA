@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/dlrm_logs_l1000"
+LOGDIR="/local/logs/gapbs_logs_l1000_mglru"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -32,11 +32,14 @@ read_checkpoint() {
 # BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
 # -----------------------------------------------------------------------------
 BENCH_NAMES=(
-  "dlrm"
+  "pr_synth" "pr_twitter" "pr_web" "bc_kron"
 )
 
 BENCH_CMDS=(
-  "python /local/dlrm/dlrm_s_pytorch.py --mini-batch-size=512 --test-mini-batch-size=1024 --test-num-workers=0 --num-batches=200 --data-generation=random --arch-mlp-bot=1024-1024-256 --arch-mlp-top=512-512-1 --arch-sparse-feature-size=256 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=100 --arch-interaction-op=dot --numpy-rand-seed=727"
+    "/local/gapbs/pr -u 27 -k 20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+    "/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+    "/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
 )
 
 # -----------------------------------------------------------------------------
@@ -51,6 +54,7 @@ WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
 ZONE_VALUES=(1 3 7)
+MGLRU_VALUES=(0 100 500 750 1000)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -77,6 +81,17 @@ set_swap() {
 
 set_zone_reclaim() {
     sudo sysctl -w vm.zone_reclaim_mode="$1"
+}
+
+# Fixed MGLRU toggle
+set_mglru() {
+    echo 0x7 | sudo tee /sys/kernel/mm/lru_gen/enabled
+}
+
+# Optional: set min TTL for MGLRU
+set_mglru_ttl() {
+    local ttl="$1"
+    echo "$ttl" | sudo tee /sys/kernel/mm/lru_gen/min_ttl_ms
 }
 
 run_repo_config() {
@@ -115,9 +130,11 @@ for thp in "${THP_MODES[@]}"; do
             for vfs in "${VFS_VALUES[@]}"; do
                 for swap in "${SWAP_VALUES[@]}"; do
                     for zone in "${ZONE_VALUES[@]}"; do
-                        for i in "${!BENCH_NAMES[@]}"; do
-                            TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${zone}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
-                            idx=$((idx+1))
+                        for mglru in "${MGLRU_VALUES[@]}"; do
+                            for i in "${!BENCH_NAMES[@]}"; do
+                                TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${zone}|${mglru}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
+                                idx=$((idx+1))
+                            done
                         done
                     done
                 done
@@ -152,11 +169,11 @@ log "Resuming from task index $start_index"
 # MAIN LOOP (ONE TASK PER BOOT)
 # -----------------------------------------------------------------------------
 for (( id=start_index; id<TOTAL; id++ )); do
-    IFS='|' read -r thp defrag wm vfs swap zone bench cmd <<< "${TASKS[$id]}"
+    IFS='|' read -r thp defrag wm vfs swap zone mglru bench cmd <<< "${TASKS[$id]}"
 
-    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}.log"
+    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}_mglru-${mglru}.log"
 
-    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap zone=$zone"
+    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap zone=$zone mglru=$mglru"
     echo "Command: $cmd" | sudo tee -a "$logfile"
 
     set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
@@ -168,6 +185,10 @@ for (( id=start_index; id<TOTAL; id++ )); do
     set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
 
     set_zone_reclaim "$zone" 2>&1 | sudo tee -a "$logfile" 
+
+        # Set MGLRU and optionally TTL
+    set_mglru  2>&1 | sudo tee -a "$logfile"
+    set_mglru_ttl "$mglru"    2>&1 | sudo tee -a "$logfile"   # example TTL
 
     # Pre-run metrics
     cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
@@ -201,6 +222,12 @@ for (( id=start_index; id<TOTAL; id++ )); do
     
     echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
+
+    echo "mm.lru_gen.enabled:"       | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/lru_gen/enabled                    2>&1 | sudo tee -a "$logfile"
+
+    echo "mm.lru_gen.min_ttl_ms:"       | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/mm/lru_gen/min_ttl_ms                     2>&1 | sudo tee -a "$logfile"
 
     ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
 
