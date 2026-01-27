@@ -47,10 +47,10 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
-WM_VALUES=(10 100 500 1000)
+WM_VALUES=(10)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
-ZONE_VALUES=(1 3 7)
+ZONE_VALUES=(0)
 MGLRU_VALUES=(0 100 500 750 1000)
 
 # -----------------------------------------------------------------------------
