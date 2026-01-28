@@ -2,7 +2,7 @@ sudo bash /local/repository/config.sh
 cat /proc/vmstat | grep numa_pages_migrated
 cat /proc/vmstat | grep pgpromote_success
 cat /proc/vmstat | grep nr_active_file
-sudo /usr/bin/time --verbose /users/thmsvlk/bin/perf stat -a --per-socket -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles -- taskset -c 0,1,2,3,4,5,6,7 bash -c "/local/gapbs/pr -u 27 -k 20"
+sudo /usr/bin/time --verbose /users/thmsvlk/bin/perf stat -a --per-socket -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles -- numactl -N 0 bash -c "/local/gapbs/pr -u 27 -k 20"
 cat /proc/vmstat | grep numa_pages_migrated
 cat /proc/vmstat | grep pgpromote_success
 cat /proc/vmstat | grep nr_active_file
