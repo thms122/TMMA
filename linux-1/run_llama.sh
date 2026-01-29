@@ -1,4 +1,4 @@
-sudo bash /local/repository/linux-1000/config.sh
+sudo bash /local/repository/linux-1/config.sh
 cat /proc/vmstat | grep numa_pages_migrated
 cat /proc/vmstat | grep pgpromote_success
 cat /proc/vmstat | grep nr_active_file
