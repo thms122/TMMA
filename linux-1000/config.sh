@@ -1,6 +1,6 @@
 #Setting THP tunables
-sudo sh -c "echo "defer+madvise" > /sys/kernel/mm/transparent_hugepage/defrag"
-sudo sh -c "echo "always" > /sys/kernel/mm/transparent_hugepage/enabled"
+sudo sh -c "echo "never" > /sys/kernel/mm/transparent_hugepage/defrag"
+sudo sh -c "echo "never" > /sys/kernel/mm/transparent_hugepage/enabled"
 
 
 #Here you should enable colloid, by first loading the files the user-level files you should compile. I assume the files are like this, but you probably should double check the directories:
