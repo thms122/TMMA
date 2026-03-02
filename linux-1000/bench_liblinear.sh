@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/liblinear_logs_l1000"
+LOGDIR="/local/logs/16gb_liblinear_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -49,7 +49,7 @@ DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 1 60 100)
+SWAP_VALUES=(60)
 ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------

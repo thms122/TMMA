@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/gapbs_logs_l1000"
+LOGDIR="/local/logs/16gb_gapbs_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -53,7 +53,7 @@ DEFRAG_FOR_NEVER=("never")
 WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
-ZONE_VALUES=(1 3 7)
+ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
