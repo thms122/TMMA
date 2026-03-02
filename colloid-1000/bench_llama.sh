@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/llama_logs"
+LOGDIR="/local/logs/16gb_llama_logs"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -42,14 +42,14 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("madvise")
+THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("madvise")
+DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10 100 500 1000)
-VFS_VALUES=(0 100 500)
-SWAP_VALUES=(0 1 10 60 100)
+VFS_VALUES=(100)
+SWAP_VALUES=(60)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
