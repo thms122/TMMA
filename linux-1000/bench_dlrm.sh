@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/16gb_dlrm_logs_l1000"
+LOGDIR="/local/logs/dlrm_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
