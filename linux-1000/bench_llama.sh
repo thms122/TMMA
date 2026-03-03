@@ -42,14 +42,14 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("always")
+THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("defrag+madvise")
+DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10)
 VFS_VALUES=(100)
-SWAP_VALUES=(60)
+SWAP_VALUES=(1)
 ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------
