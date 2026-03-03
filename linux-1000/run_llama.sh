@@ -12,4 +12,3 @@ sudo cat /proc/sys/vm/watermark_scale_factor
 sudo cat /proc/sys/vm/zone_reclaim_mode
 sudo cat /proc/sys/vm/swappiness
 ls /sys/devices/virtual/memory_tiering/
-
