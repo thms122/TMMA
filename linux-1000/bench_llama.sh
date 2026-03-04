@@ -42,7 +42,7 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("never" "always")
+THP_MODES=("always")
 
 DEFRAG_FOR_ALWAYS=("defer+madvise")
 DEFRAG_FOR_NEVER=("never")
