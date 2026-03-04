@@ -44,13 +44,13 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
+DEFRAG_FOR_ALWAYS=("defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
-WM_VALUES=(10)
+WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
-ZONE_VALUES=(1 3 7)
+ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
