@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/liblinear_logs_cl1000"
+LOGDIR="/local/logs/16gb_liblinear_logs_cl1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -47,9 +47,9 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
-WM_VALUES=(10)
+WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
-SWAP_VALUES=(1 5 10)
+SWAP_VALUES=(60)
 ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------
@@ -95,7 +95,7 @@ run_repo_config() {
     sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
     sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
 
-    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
+    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
 
     sudo swapoff -a || true
     sudo sync
@@ -202,7 +202,7 @@ for (( id=start_index; id<TOTAL; id++ )); do
     
     echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
-    
+
     echo "numahot_threshold:"       | sudo tee -a "$logfile"
     sudo cat /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms                      2>&1 | sudo tee -a "$logfile"
 
