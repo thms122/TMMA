@@ -47,10 +47,10 @@ THP_MODES=("never" "always")
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
-WM_VALUES=(10 100 500 1000)
+WM_VALUES=(10)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 1 60)
-ZONE_VALUES=(1 3 7)
+SWAP_VALUES=(1 5 10)
+ZONE_VALUES=(0)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -94,6 +94,8 @@ run_repo_config() {
 
     sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
     sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
+
+    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
 
     sudo swapoff -a || true
     sudo sync
@@ -200,7 +202,9 @@ for (( id=start_index; id<TOTAL; id++ )); do
     
     echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
     sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
-
+    
+    echo "numahot_threshold:"       | sudo tee -a "$logfile"
+    sudo cat /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms                      2>&1 | sudo tee -a "$logfile"
 
     ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
 
