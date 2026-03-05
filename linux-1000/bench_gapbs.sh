@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/gapbs_logs_l1"
+LOGDIR="/local/logs/16gbgapbs_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -45,12 +45,12 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("madvise")
+THP_MODES=("never" "always")
 
-DEFRAG_FOR_ALWAYS=("madvise")
+DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
-WM_VALUES=(10)
+WM_VALUES=(10 100 500 1000)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
 ZONE_VALUES=(0)
@@ -94,7 +94,7 @@ run_repo_config() {
 
     sudo sh -c "echo 2 > /proc/sys/kernel/numa_balancing" 
 
-    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
+    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
 
     sudo swapoff -a || true
     sudo sync
