@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/16gb_liblinear_logs_cl1000"
+LOGDIR="/local/logs/liblinear_logs_cl1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -42,15 +42,15 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("never" "always")
+THP_MODES=("always")
 
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 1 10 100)
-ZONE_VALUES=(0)
+SWAP_VALUES=(60)
+ZONE_VALUES=(1 3 7)
 
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
@@ -95,7 +95,7 @@ run_repo_config() {
     sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
     sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
 
-    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
+    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
 
     sudo swapoff -a || true
     sudo sync
