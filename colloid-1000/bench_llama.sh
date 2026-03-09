@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/llama_logs_cl1000"
+LOGDIR="/local/logs/llama_logs_cl1"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -42,7 +42,7 @@ BENCH_CMDS=(
 # -----------------------------------------------------------------------------
 # PARAMETER SWEEPS
 # -----------------------------------------------------------------------------
-THP_MODES=("always")
+THP_MODES=("never" "always")
 
 DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
 DEFRAG_FOR_NEVER=("never")
@@ -96,7 +96,7 @@ run_repo_config() {
     sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
     sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
 
-    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
+    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
 
     sudo swapoff -a || true
     sudo sync
