@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/16gbdlrm_logs_l1"
+LOGDIR="/local/logs/dlrm_logs_l1"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -49,9 +49,8 @@ DEFRAG_FOR_NEVER=("never")
 
 WM_VALUES=(10)
 VFS_VALUES=(100)
-SWAP_VALUES=(0 1 10 100)
-ZONE_VALUES=(0)
-
+SWAP_VALUES=(60)
+ZONE_VALUES=(1 3 7)
 # -----------------------------------------------------------------------------
 # SYSTEM TUNING HELPERS
 # -----------------------------------------------------------------------------
