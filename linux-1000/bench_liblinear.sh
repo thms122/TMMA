@@ -13,7 +13,7 @@ set -u
 # -----------------------------------------------------------------------------
 # LOGGING / CHECKPOINT
 # -----------------------------------------------------------------------------
-LOGDIR="/local/logs/liblinear_logs_l1"
+LOGDIR="/local/logs/liblinear_logs_l1000"
 mkdir -p "$LOGDIR"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
 
@@ -91,7 +91,7 @@ run_repo_config() {
 
     sudo sh -c "echo 2 > /proc/sys/kernel/numa_balancing" 
 
-    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
+    sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms"
 
     sudo swapoff -a || true
     sudo sync
