@@ -37,7 +37,7 @@ ZONE_VALUES=(0)
 
 # Valid TTL values (0 is valid)
 # If MGLRU is unavailable, the TTL sweep will be skipped and "NA" will be used in logs.
-MGLRU_TTLS=(0 1000 5000)
+MGLRU_TTLS=(0)
 
 CPUSET="0,1,2,3,4,5,6,7"
 PERF_EVENTS="dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles"

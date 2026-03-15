@@ -1,228 +1,223 @@
 #!/usr/bin/env bash
-# run_all_benchmarks.sh
-# Runs all benchmarks for each THP x DEFRAG x WM x VFS x SWAP combination.
-# Reboots after every single benchmark and correctly resumes after reboot.
-# Checkpoint format: single integer -> index of last COMPLETED task.
+set -euo pipefail
 
-set -u
-
-# -----------------------------------------------------------------------------
-# ENV SETUP
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-# LOGGING / CHECKPOINT
-# -----------------------------------------------------------------------------
-LOGDIR="/local/logs/llama_logs_cl1"
-mkdir -p "$LOGDIR"
+LOGDIR="/local/logs/bench_logs"
 CHECKPOINT="$LOGDIR/checkpoint.idx"
+TASKFILE="$LOGDIR/all_tasks.txt"
 
-log() { echo "[$(date '+%F %T')] $*"; }
+mkdir -p "$LOGDIR"
 
-write_checkpoint() {
-    echo "$1" > "$CHECKPOINT"
-    sync
-}
+log() { printf '[%s] %s\n' "$(date '+%F %T')" "$*"; }
+ckpt_read() { [[ -f "$CHECKPOINT" ]] && cat "$CHECKPOINT" || echo "-1"; }
+ckpt_write() { echo "$1" >"$CHECKPOINT"; sync; }
 
-read_checkpoint() {
-    [ -f "$CHECKPOINT" ] && cat "$CHECKPOINT" || echo "-1"
-}
+# ----------------------------- Configuration -----------------------------
+# Select system: "linux" or "colloid"
+SYSTEM="colloid"
 
-# -----------------------------------------------------------------------------
-# BENCHMARK DEFINITIONS (EDIT ONLY THIS SECTION TO CHANGE BENCHMARKS)
-# -----------------------------------------------------------------------------
-BENCH_NAMES=(
-  "llama"
-)
-
+BENCH_NAMES=(llama)
 BENCH_CMDS=(
-    "/local/llama.cpp/build/bin/llama-bench   -m /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf -t 8 -p 1 -n 2"
+  #"/local/gapbs/pr -u 27 -k 20"
+  #"/local/gapbs/pr -f /local/gapbs/benchmark/graphs/twitter.sg -t1e-4 -n20"
+  #"/local/gapbs/pr -f /local/gapbs/benchmark/graphs/web.sg -t1e-4 -n20"
+  #"/local/gapbs/bc -f /local/gapbs/benchmark/graphs/kron.sg -n20"
+  "/local/llama.cpp/build/bin/llama-bench   -m /local/llama.cpp/Meta-Llama-3-70B-Instruct-Q4_K_M.gguf -t 8 -p 1 -n 2"
+  #"/local/liblinear/train -s 6 /local/liblinear/HIGGS"
+  #"python /local/dlrm/dlrm_s_pytorch.py --mini-batch-size=512 --test-mini-batch-size=1024 --test-num-workers=0 --num-batches=200 --data-generation=random --arch-mlp-bot=1024-1024-256 --arch-mlp-top=512-512-1 --arch-sparse-feature-size=256 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=100 --arch-interaction-op=dot --numpy-rand-seed=727"
 )
 
-# -----------------------------------------------------------------------------
-# PARAMETER SWEEPS
-# -----------------------------------------------------------------------------
-THP_MODES=("never" "always")
-
-DEFRAG_FOR_ALWAYS=("always" "never" "defer+madvise")
-DEFRAG_FOR_NEVER=("never")
+THP_MODES=(madvise)
+DEFRAG_ALWAYS=(madvise)
+DEFRAG_NEVER=(never)
 
 WM_VALUES=(10)
 VFS_VALUES=(100)
 SWAP_VALUES=(60)
-ZONE_VALUES=(1 3 7)
+ZONE_VALUES=(0)
 
+# Valid TTL values (0 is valid)
+# If MGLRU is unavailable, the TTL sweep will be skipped and "NA" will be used in logs.
+MGLRU_TTLS=(0)
 
-# -----------------------------------------------------------------------------
-# SYSTEM TUNING HELPERS
-# -----------------------------------------------------------------------------
-set_thp_enabled() {
-    sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/enabled"
+CPUSET="0,1,2,3,4,5,6,7"
+PERF_EVENTS="dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles"
+
+MGLRU_TTL_PATH="/sys/kernel/mm/lru_gen/min_ttl_ms"
+
+# ----------------------------- System helpers ----------------------------
+repo_setup_linux() {
+  sudo insmod /local/Linux-6-16-Tiers/tierinit.ko 2>/dev/null || true
+  sudo sh -c "echo 2 > /proc/sys/kernel/numa_balancing"
+  sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" #adjust hot threshold here
+  sudo swapoff -a || true
+  sudo sync
 }
 
-set_thp_defrag() {
-    sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/defrag"
+perf_bin_for_system() {
+  case "$1" in
+    linux)   echo "/local/Linux-6-16-Tiers/linux-6.16.1/tools/perf/perf" ;;
+    colloid) echo "/local/colloid/tpp/linux-6.3/tools/perf/perf" ;;  # <- set your real path
+    *) echo "Unknown SYSTEM: $1 (expected: linux|colloid)" >&2; exit 1 ;;
+  esac
 }
 
-set_wm() {
-    sudo sysctl -w vm.watermark_scale_factor="$1"
+repo_setup_colloid() {
+  sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null || true
+  sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null || true
+  sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null || true
+
+  sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
+  sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
+  sudo sh -c "echo 1000 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" #adjust hot threshold here
+
+  sudo swapoff -a || true
+  sudo sync
+  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
 }
 
-set_vfs() {
-    sudo sysctl -w vm.vfs_cache_pressure="$1"
+repo_setup() {
+  case "$1" in
+    linux)   repo_setup_linux ;;
+    colloid) repo_setup_colloid ;;
+    *) echo "Unknown SYSTEM: $1 (expected: linux|colloid)" >&2; exit 1 ;;
+  esac
 }
 
-set_swap() {
-    sudo sysctl -w vm.swappiness="$1"
+thp_enabled() { sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/enabled"; }
+thp_defrag()  { sudo sh -c "echo $1 > /sys/kernel/mm/transparent_hugepage/defrag"; }
+sysctl_set()  { sudo sysctl -w "$1=$2" >/dev/null; }
+
+mglru_available() { [[ -e "$MGLRU_TTL_PATH" ]]; }
+
+set_mglru_ttl() {
+  local ttl="$1"
+  sudo sh -c "echo $ttl > $MGLRU_TTL_PATH"
 }
 
-set_zone_reclaim() {
-    sudo sysctl -w vm.zone_reclaim_mode="$1"
+
+vmstat_snap() {
+  grep -E 'numa_pages_migrated|pgpromote_success|nr_active_file' /proc/vmstat 2>/dev/null \
+    | sudo tee -a "$1" >/dev/null || true
 }
 
-
-run_repo_config() {
-    local thp_mode=$1
-
-    if [ "$thp_mode" = "never" ]; then
-        sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' || true
-        sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag' || true
+config_snap() {
+  local lf="$1"
+  {
+    echo "thp.enabled: $(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null)"
+    echo "thp.defrag:  $(cat /sys/kernel/mm/transparent_hugepage/defrag  2>/dev/null)"
+    echo "vm.watermark_scale_factor: $(cat /proc/sys/vm/watermark_scale_factor 2>/dev/null)"
+    echo "vm.vfs_cache_pressure:     $(cat /proc/sys/vm/vfs_cache_pressure 2>/dev/null)"
+    echo "vm.swappiness:             $(cat /proc/sys/vm/swappiness 2>/dev/null)"
+    echo "vm.zone_reclaim_mode:      $(cat /proc/sys/vm/zone_reclaim_mode 2>/dev/null)"
+    if mglru_available; then
+      echo "mglru.min_ttl_ms:          $(cat "$MGLRU_TTL_PATH" 2>/dev/null)"
     fi
-
-    sudo insmod /local/colloid/tpp/tierinit/tierinit.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/colloid-mon/colloid-mon.ko 2>/dev/null || true
-    sudo insmod /local/colloid/tpp/kswapdrst/kswapdrst.ko 2>/dev/null || true
-
-    sudo sh -c 'echo 1 > /sys/kernel/mm/numa/demotion_enabled' || true
-    sudo sh -c 'echo 6 > /proc/sys/kernel/numa_balancing' || true
-
-    sudo sh -c "echo 1 > /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms" || true
-
-    sudo swapoff -a || true
-    sudo sync
-    sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' || true
+  } | sudo tee -a "$lf" >/dev/null
 }
 
-# -----------------------------------------------------------------------------
-# BUILD TASK LIST
-# -----------------------------------------------------------------------------
-TASKS=()
-idx=0
+# ----------------------------- Task generation ---------------------------
 
-for thp in "${THP_MODES[@]}"; do
-    if [ "$thp" = "never" ]; then
-        defrag_list=("${DEFRAG_FOR_NEVER[@]}")
+build_tasks() {
+  : >"$TASKFILE"
+
+  local ttl_list=("NA")
+  if mglru_available; then
+    ttl_list=("${MGLRU_TTLS[@]}")
+  fi
+
+  for thp in "${THP_MODES[@]}"; do
+    if [[ "$thp" == "never" ]]; then
+      defrags=("${DEFRAG_NEVER[@]}")
     else
-        defrag_list=("${DEFRAG_FOR_ALWAYS[@]}")
+      defrags=("${DEFRAG_ALWAYS[@]}")
     fi
 
-    for defrag in "${defrag_list[@]}"; do
-        for wm in "${WM_VALUES[@]}"; do
-            for vfs in "${VFS_VALUES[@]}"; do
-                for swap in "${SWAP_VALUES[@]}"; do
-                    for zone in "${ZONE_VALUES[@]}"; do
-                        for i in "${!BENCH_NAMES[@]}"; do
-                            TASKS+=("${thp}|${defrag}|${wm}|${vfs}|${swap}|${zone}|${BENCH_NAMES[$i]}|${BENCH_CMDS[$i]}")
-                            idx=$((idx+1))
-                        done
-                    done
+    for defrag in "${defrags[@]}"; do
+      for wm in "${WM_VALUES[@]}"; do
+        for vfs in "${VFS_VALUES[@]}"; do
+          for swp in "${SWAP_VALUES[@]}"; do
+            for zone in "${ZONE_VALUES[@]}"; do
+              for ttl in "${ttl_list[@]}"; do
+                for i in "${!BENCH_NAMES[@]}"; do
+                  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
+                    "$thp" "$defrag" "$wm" "$vfs" "$swp" "$zone" "$ttl" \
+                    "${BENCH_NAMES[$i]}" "${BENCH_CMDS[$i]}" >>"$TASKFILE"
                 done
+              done
             done
+          done
         done
+      done
     done
-done
+  done
+}
 
-TOTAL=${#TASKS[@]}
-printf "%s\n" "${TASKS[@]}" > "$LOGDIR/all_tasks.txt"
-log "Total tasks: $TOTAL"
+build_tasks
 
-# -----------------------------------------------------------------------------
-# RESUME FROM CHECKPOINT
-# -----------------------------------------------------------------------------
-last_completed=$(read_checkpoint)
-start_index=$((last_completed + 1))
+TOTAL="$(wc -l <"$TASKFILE" | tr -d ' ')"
+last_done="$(ckpt_read)"
+start="$((last_done + 1))"
 
-if [ "$start_index" -ge "$TOTAL" ]; then
-    log "All tasks completed."
-    rm -f "$CHECKPOINT"
-    exit 0
+if (( start >= TOTAL )); then
+  log "All tasks completed."
+  rm -f "$CHECKPOINT"
+  exit 0
 fi
 
-log "Resuming from task index $start_index"
+log "Total tasks: $TOTAL"
+log "Resuming at index: $start"
 
-# -----------------------------------------------------------------------------
-# MAIN LOOP (ONE TASK PER BOOT)
-# -----------------------------------------------------------------------------
-for (( id=start_index; id<TOTAL; id++ )); do
-    IFS='|' read -r thp defrag wm vfs swap zone bench cmd <<< "${TASKS[$id]}"
+# ----------------------------- Execute one task --------------------------
 
-    logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swap}_zone-${zone}.log"
+task_line="$(sed -n "$((start + 1))p" "$TASKFILE")"
+IFS='|' read -r thp defrag wm vfs swp zone ttl bench cmd <<<"$task_line"
 
-    log "TASK $id: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swap zone=$zone"
-    echo "Command: $cmd" | sudo tee -a "$logfile"
+logfile="$LOGDIR/${bench}_THP-${thp}_DEFRAG-${defrag}_WM-${wm}_VFS-${vfs}_SWAP-${swp}_ZONE-${zone}_MGLRU-${ttl}.log"
 
-    set_thp_enabled "$thp"    2>&1 | sudo tee -a "$logfile"
-    set_thp_defrag  "$defrag" 2>&1 | sudo tee -a "$logfile"
-    run_repo_config "$thp"    2>&1 | sudo tee -a "$logfile"
+log "TASK $start: $bench | THP=$thp DEFRAG=$defrag WM=$wm VFS=$vfs SWAP=$swp ZONE=$zone MGLRU=$ttl"
+echo "cmd: $cmd" | sudo tee -a "$logfile" >/dev/null
 
-    set_wm   "$wm"   2>&1 | sudo tee -a "$logfile"
-    set_vfs  "$vfs"  2>&1 | sudo tee -a "$logfile"
-    set_swap "$swap" 2>&1 | sudo tee -a "$logfile"
+thp_enabled "$thp"
+thp_defrag  "$defrag"
+repo_setup "$SYSTEM"
 
-    set_zone_reclaim "$zone" 2>&1 | sudo tee -a "$logfile" 
+sysctl_set vm.watermark_scale_factor "$wm"
+sysctl_set vm.vfs_cache_pressure     "$vfs"
+sysctl_set vm.swappiness             "$swp"
+sysctl_set vm.zone_reclaim_mode      "$zone"
 
-    # Pre-run metrics
-    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
-    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
-    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
+if [[ "$ttl" != "NA" ]]; then
+  if mglru_available; then
+    set_mglru_ttl "$ttl"
+  else
+    echo "mglru unavailable; skipping set min_ttl_ms" | sudo tee -a "$logfile" >/dev/null
+  fi
+fi
 
-    #Command execution with perf and time
-    sudo /usr/bin/time --verbose \
-    /local/colloid/tpp/linux-6.3/tools/perf/perf stat -a --per-socket \
-    -e dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles \
-    -- taskset -c 0,1,2,3,4,5,6,7 bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
+vmstat_snap "$logfile"
+config_snap "$logfile"
 
-    exit_status=${PIPESTATUS[0]}
-    echo "Exit status: $exit_status" | sudo tee -a "$logfile"
+PERF_BIN="$(perf_bin_for_system "$SYSTEM")"
 
-    # Post-run metrics
-    cat /proc/vmstat | grep numa_pages_migrated     2>&1 | sudo tee -a "$logfile"
-    cat /proc/vmstat | grep pgpromote_success       2>&1 | sudo tee -a "$logfile"
-    cat /proc/vmstat | grep nr_active_file          2>&1 | sudo tee -a "$logfile"
+set +e
+sudo /usr/bin/time --verbose \
+  "$PERF_BIN" stat -a --per-socket -e "$PERF_EVENTS" -- \
+  taskset -c "$CPUSET" bash -c "$cmd" 2>&1 | sudo tee -a "$logfile"
+rc="${PIPESTATUS[0]}"
+set -e
 
-    sudo cat /sys/kernel/mm/transparent_hugepage/defrag           2>&1 | sudo tee -a "$logfile"
-    sudo cat /sys/kernel/mm/transparent_hugepage/enabled          2>&1 | sudo tee -a "$logfile"
-    echo "vm.watermark_scale_factor:"  | sudo tee -a "$logfile"
-    sudo cat /proc/sys/vm/watermark_scale_factor | sudo tee -a "$logfile"
+echo "exit_status: $rc" | sudo tee -a "$logfile" >/dev/null
 
-    echo "vm.zone_reclaim_mode:"       | sudo tee -a "$logfile"
-    sudo cat /proc/sys/vm/zone_reclaim_mode | sudo tee -a "$logfile"
+vmstat_snap "$logfile"
+config_snap "$logfile"
 
-    echo "vm.swappiness:"               | sudo tee -a "$logfile"
-    sudo cat /proc/sys/vm/swappiness | sudo tee -a "$logfile"
-    
-    echo "vm.vfs_cache_pressure:"       | sudo tee -a "$logfile"
-    sudo cat /proc/sys/vm/vfs_cache_pressure                      2>&1 | sudo tee -a "$logfile"
+if (( rc != 0 )); then
+  log "Task failed (rc=$rc). Rebooting."
+  sudo reboot
+  exit 0
+fi
 
-    echo "numahot_threshold:"       | sudo tee -a "$logfile"
-    sudo cat /sys/kernel/debug/sched/numa_balancing/hot_threshold_ms                      2>&1 | sudo tee -a "$logfile"
-
-    ls /sys/devices/virtual/memory_tiering/                      2>&1 | sudo tee -a "$logfile"
-
-    if [ "$exit_status" -ne 0 ]; then
-        log "Task failed, retrying after reboot"
-        [ -f "$CHECKPOINT" ] || echo "-1" > "$CHECKPOINT"
-        sudo reboot
-        exit 0
-    fi
-
-    write_checkpoint "$id"
-    log "Task completed, rebooting"
-    sleep 5
-    sudo reboot
-    exit 0
-done
-
-log "All tasks finished."
-rm -f "$CHECKPOINT"
-exit 0
+ckpt_write "$start"
+log "Task completed. Rebooting."
+sleep 2
+sudo reboot
