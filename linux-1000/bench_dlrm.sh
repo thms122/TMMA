@@ -26,8 +26,8 @@ BENCH_CMDS=(
   "python /local/dlrm/dlrm_s_pytorch.py --mini-batch-size=512 --test-mini-batch-size=1024 --test-num-workers=0 --num-batches=200 --data-generation=random --arch-mlp-bot=1024-1024-256 --arch-mlp-top=512-512-1 --arch-sparse-feature-size=256 --arch-embedding-size=1000000-1000000-1000000-1000000-1000000-1000000-1000000 --num-indices-per-lookup=100 --arch-interaction-op=dot --numpy-rand-seed=727"
 )
 
-THP_MODES=(madvise)
-DEFRAG_ALWAYS=(madvise)
+THP_MODES=(always never)
+DEFRAG_ALWAYS=(always never defer+madvise)
 DEFRAG_NEVER=(never)
 
 WM_VALUES=(10)
@@ -37,7 +37,7 @@ ZONE_VALUES=(0)
 
 # Valid TTL values (0 is valid)
 # If MGLRU is unavailable, the TTL sweep will be skipped and "NA" will be used in logs.
-MGLRU_TTLS=(0)
+MGLRU_TTLS=(0 10 50 1000)
 
 CPUSET="0,1,2,3,4,5,6,7"
 PERF_EVENTS="dTLB-load-misses,dTLB-loads,dTLB-store-misses,dTLB-stores,cache-misses,cache-references,bus-cycles"
